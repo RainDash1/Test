@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Buckshot Roulette – Shell System</title>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    background: #111;
+    color: #eee;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+  }
+
+  .game {
+    background: #1a1a1a;
+    padding: 2rem;
+    border-radius: 12px;
+    width: 320px;
+    text-align: center;
+    box-shadow: 0 0 40px rgba(0,0,0,.6);
+  }
+
+  h1 {
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+  }
+
+  button {
+    background: #d73232;
+    border: none;
+    color: white;
+    padding: .7rem 1rem;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+    margin: .4rem;
+  }
+
+  button.secondary {
+    background: #444;
+  }
+
+  button:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+  }
+
+  .status {
+    margin-top: 1rem;
+    min-height: 2.5em;
+  }
+
+  .shells {
+    margin-top: 1rem;
+    font-size: .9rem;
+    color: #aaa;
+  }
+</style>
+</head>
+<body>
+
+<div class="game">
+  <h1>Buckshot Roulette</h1>
+
+  <div>
+    <button onclick="fire()">Pull Trigger</button>
+    <button class="secondary" onclick="resetGame()">Reload</button>
+  </div>
+
+  <div class="status" id="status">
+    Load the shotgun.
+  </div>
+
+  <div class="shells" id="shells">
+    Shells remaining: 0
+  </div>
+</div>
+
+<script>
+let shells = [];
+
+function resetGame() {
+  const live = 2;   // change this
+  const blank = 2;  // change this
+
+  shells = [];
+
+  for (let i = 0; i < live; i++) shells.push("LIVE");
+  for (let i = 0; i < blank; i++) shells.push("BLANK");
+
+  shuffle(shells);
+
+  updateUI("Shotgun loaded.");
+}
+
+function fire() {
+  if (shells.length === 0) {
+    updateUI("No shells left.");
+    return;
+  }
+
+  const shell = shells.shift();
+
+  if (shell === "LIVE") {
+    updateUI("💥 LIVE SHELL");
+  } else {
+    updateUI("click… BLANK");
+  }
+}
+
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+}
+
+function updateUI(message) {
+  document.getElementById("status").textContent = message;
+  document.getElementById("shells").textContent =
+    `Shells remaining: ${shells.length}`;
+}
+</script>
+
+</body>
+</html>
