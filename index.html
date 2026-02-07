@@ -78,142 +78,169 @@ button:disabled { opacity: .4; cursor: not-allowed; }
 
 <script>
 /* ===== STATE ===== */
-let shells=[], liveCount=0, blankCount=0;
+let shells=[];
 let playerHP=2, dealerHP=2;
 let sawed=false;
 let playerTurn=true;
+let stealMode=false;
+
 let cuffed={player:false,dealer:false};
 
 let playerInv=Array(8).fill(null);
 let dealerInv=Array(8).fill(null);
 
 /* ===== ITEMS ===== */
-const ITEMS = {
-  Beer: ()=>ejectShell(),
-  Saw: ()=>{ sawed=true; log("Saw armed."); },
-  Magnifier: ()=>peek(0),
-  Cigarettes: ()=>heal("player"),
-  Handcuffs: ()=>{ cuffed.dealer=true; log("Dealer handcuffed."); },
-  Inverter: ()=>invert(),
-  Adrenaline: ()=>stealItem(),
-  Pills: ()=>pills("player"),
-  Phone: ()=>peekFuture()
+const ITEMS={
+  Beer:()=>ejectShell(),
+  Saw:()=>{sawed=true;log("Saw armed.");endPlayerTurn();},
+  Magnifier:()=>peek(0),
+  Cigarettes:()=>heal("player"),
+  Handcuffs:()=>{cuffed.dealer=true;log("Dealer cuffed.");endPlayerTurn();},
+  Inverter:()=>invert(),
+  Adrenaline:()=>startSteal(),
+  Pills:()=>pills("player"),
+  Phone:()=>peekFuture()
 };
 
-/* ===== ROUND SETUP ===== */
+/* ===== RESET ===== */
+function resetGame(){
+  playerHP=2; dealerHP=2;
+  shells=[];
+  playerInv.fill(null);
+  dealerInv.fill(null);
+  sawed=false;
+  cuffed={player:false,dealer:false};
+  playerTurn=true;
+  updateUI("Game reset.");
+}
+
+/* ===== RELOAD ===== */
 function reload(){
   shells=[]; sawed=false;
   cuffed={player:false,dealer:false};
 
   const total=r(2,8);
-  liveCount=r(1,total-1);
-  blankCount=total-liveCount;
+  const live=r(1,total-1);
+  const blank=total-live;
 
-  shells.push(...Array(liveCount).fill("LIVE"));
-  shells.push(...Array(blankCount).fill("BLANK"));
+  shells.push(...Array(live).fill("LIVE"));
+  shells.push(...Array(blank).fill("BLANK"));
   shuffle(shells);
 
   grantItems(playerInv);
   grantItems(dealerInv);
 
-  document.getElementById("dealer").textContent=
-    `Dealer: ${liveCount} live, ${blankCount} blank.`;
-
-  updateUI("Shotgun loaded.");
+  log(`Dealer: ${live} live, ${blank} blank.`);
 }
 
 /* ===== FIRING ===== */
 function playerFire(target){
-  if(!playerTurn) return;
+  if(!playerTurn||stealMode) return;
   fire(target);
   endPlayerTurn();
 }
 
 function fire(target){
-  if(!shells.length) return updateUI("Empty chamber.");
+  if(!shells.length) return log("Empty chamber.");
 
   const shell=shells.shift();
   if(shell==="LIVE"){
     const dmg=sawed?2:1;
-    if(target==="player") playerHP-=dmg;
-    else dealerHP-=dmg;
+    target==="player"?playerHP-=dmg:dealerHP-=dmg;
     sawed=false;
-    updateUI(`💥 LIVE SHELL (${dmg})`);
-  } else {
-    updateUI("click… BLANK");
-  }
+    log(`💥 LIVE (${dmg})`);
+  } else log("click… BLANK");
+
   checkDeath();
 }
 
-/* ===== DEALER TURN ===== */
+/* ===== DEALER AI ===== */
 function dealerTurn(){
   if(cuffed.dealer){
     cuffed.dealer=false;
-    updateUI("Dealer skips turn.");
+    log("Dealer skips turn.");
     playerTurn=true;
     return;
   }
 
-  // crude but authentic logic
-  const target = shells[0]==="LIVE" ? "player" : (Math.random()<.5?"player":"dealer");
+  // Item usage
+  if(useDealerItem("Magnifier")) return;
+  if(shells[0]==="LIVE" && useDealerItem("Inverter")) return;
+  if(shells[0]==="LIVE" && useDealerItem("Beer")) return;
+  if(useDealerItem("Saw")) return;
+
+  // Fire decision
+  const liveChance = shells.filter(s=>s==="LIVE").length / shells.length;
+  const target = liveChance>=0.5 ? "player" : "dealer";
   fire(target);
+
   playerTurn=true;
+}
+
+/* ===== DEALER ITEM USE ===== */
+function useDealerItem(name){
+  const i=dealerInv.indexOf(name);
+  if(i===-1) return false;
+
+  dealerInv[i]=null;
+  log(`Dealer uses ${name}.`);
+  ITEMS[name==="Cigarettes"?"Cigarettes":name]?.call();
+  renderAll();
+  setTimeout(()=>playerTurn=true,600);
+  return true;
 }
 
 /* ===== ITEMS ===== */
 function ejectShell(){
-  if(shells.length){
-    shells.shift();
-    updateUI("Beer ejected shell.");
-    endPlayerTurn();
-  }
+  if(shells.length){shells.shift();log("Shell ejected.");}
 }
-function peek(i){ if(shells[i]) updateUI(`Peek: ${shells[i]}`); }
+function peek(i){ if(shells[i]) log(`Peek: ${shells[i]}`); }
 function invert(){
   if(shells.length){
     shells[0]=shells[0]==="LIVE"?"BLANK":"LIVE";
-    updateUI("Shell inverted.");
+    log("Shell inverted.");
     endPlayerTurn();
   }
 }
 function heal(who){
-  if(who==="player") playerHP++;
-  updateUI("Healed.");
-  endPlayerTurn();
+  who==="player"?playerHP++:dealerHP++;
+  log("Healed.");
 }
 function pills(who){
-  Math.random()<.5 ? heal(who) : (who==="player"?playerHP--:dealerHP--);
-  updateUI("Pills used.");
+  Math.random()<.5?heal(who):(who==="player"?playerHP--:dealerHP--);
   checkDeath();
   endPlayerTurn();
 }
 function peekFuture(){
   const i=r(1,Math.min(3,shells.length-1));
-  if(shells[i]) updateUI(`Future ${i+1}: ${shells[i]}`);
+  if(shells[i]) log(`Future ${i+1}: ${shells[i]}`);
 }
-function stealItem(){
-  const source=dealerInv.filter(Boolean);
-  if(!source.length) return updateUI("Nothing to steal.");
-  const item=source[r(0,source.length-1)];
-  removeItem(dealerInv,item);
+
+/* ===== ADRENALINE STEAL ===== */
+function startSteal(){
+  if(!dealerInv.some(Boolean)) return log("Nothing to steal.");
+  stealMode=true;
+  log("Choose item to steal.");
+  renderInv(dealerInv,"dealerInv",true,true);
+}
+function stealItem(i){
+  const item=dealerInv[i];
+  dealerInv[i]=null;
   addItem(playerInv,item);
-  updateUI(`Stole ${item}.`);
+  stealMode=false;
+  log(`Stole ${item}.`);
   endPlayerTurn();
 }
 
 /* ===== INVENTORY ===== */
 function grantItems(inv){
-  for(let i=0;i<r(1,4);i++) addItem(inv, randomItem());
+  for(let i=0;i<r(1,4);i++) addItem(inv,randomItem());
 }
 function addItem(inv,item){
   const i=inv.indexOf(null);
   if(i!==-1) inv[i]=item;
 }
-function removeItem(inv,item){
-  const i=inv.indexOf(item);
-  if(i!==-1) inv[i]=null;
-}
-function renderInv(inv,id,clickable){
+function renderInv(inv,id,clickable,steal=false){
   const el=document.getElementById(id);
   el.innerHTML="";
   inv.forEach((it,i)=>{
@@ -221,11 +248,7 @@ function renderInv(inv,id,clickable){
     d.className="slot"+(it?"":" empty");
     d.textContent=it||"Empty";
     if(it&&clickable){
-      d.onclick=()=>{
-        ITEMS[it]();
-        inv[i]=null;
-        renderAll();
-      };
+      d.onclick=()=>steal?stealItem(i):(ITEMS[it](),inv[i]=null,renderAll());
     }
     el.appendChild(d);
   });
@@ -234,11 +257,11 @@ function renderInv(inv,id,clickable){
 /* ===== FLOW ===== */
 function endPlayerTurn(){
   playerTurn=false;
-  setTimeout(dealerTurn,800);
+  setTimeout(dealerTurn,900);
 }
 function checkDeath(){
-  if(playerHP<=0) updateUI("You died.");
-  if(dealerHP<=0) updateUI("Dealer died.");
+  if(playerHP<=0) log("You died.");
+  if(dealerHP<=0) log("Dealer died.");
 }
 function updateUI(msg){
   document.getElementById("status").textContent=msg;
@@ -246,15 +269,17 @@ function updateUI(msg){
     `Player HP: ${playerHP} | Dealer HP: ${dealerHP}`;
   renderAll();
 }
+function log(t){updateUI(t);}
 function renderAll(){
-  renderInv(playerInv,"playerInv",true);
-  renderInv(dealerInv,"dealerInv",false);
+  renderInv(playerInv,"playerInv",true,false);
+  renderInv(dealerInv,"dealerInv",false,false);
 }
 
 /* ===== UTIL ===== */
-function randomItem(){ return Object.keys(ITEMS)[r(0,8)]; }
+function randomItem(){return Object.keys(ITEMS)[r(0,8)]}
 function shuffle(a){for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}}
 function r(a,b){return Math.floor(Math.random()*(b-a+1))+a}
 </script>
+
 </body>
 </html>
