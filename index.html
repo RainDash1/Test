@@ -2,37 +2,46 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Buckshot Roulette – Shell System</title>
+<title>Buckshot Roulette</title>
 <style>
   body {
+    margin: 0;
     font-family: system-ui, sans-serif;
-    background: #111;
+    background: radial-gradient(circle at top, #1a1a1a, #000);
     color: #eee;
+    height: 100vh;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
   }
 
   .game {
-    background: #1a1a1a;
+    background: #111;
+    border-radius: 14px;
     padding: 2rem;
-    border-radius: 12px;
-    width: 320px;
+    width: 360px;
+    box-shadow: 0 0 60px rgba(0,0,0,.8);
     text-align: center;
-    box-shadow: 0 0 40px rgba(0,0,0,.6);
   }
 
   h1 {
-    font-size: 1.4rem;
-    margin-bottom: 1rem;
+    margin: 0 0 1rem;
+    font-weight: 600;
+    letter-spacing: .04em;
+  }
+
+  .dealer {
+    font-size: .95rem;
+    color: #aaa;
+    margin-bottom: 1.2rem;
+    min-height: 3em;
   }
 
   button {
-    background: #d73232;
+    background: #8b1d1d;
     border: none;
-    color: white;
-    padding: .7rem 1rem;
+    color: #fff;
+    padding: .7rem 1.2rem;
     border-radius: 6px;
     font-size: 1rem;
     cursor: pointer;
@@ -40,23 +49,24 @@
   }
 
   button.secondary {
-    background: #444;
+    background: #333;
   }
 
   button:disabled {
-    opacity: .5;
+    opacity: .4;
     cursor: not-allowed;
   }
 
   .status {
     margin-top: 1rem;
-    min-height: 2.5em;
+    font-size: 1.1rem;
+    min-height: 2em;
   }
 
   .shells {
-    margin-top: 1rem;
-    font-size: .9rem;
-    color: #aaa;
+    margin-top: .6rem;
+    font-size: .85rem;
+    color: #888;
   }
 </style>
 </head>
@@ -65,13 +75,17 @@
 <div class="game">
   <h1>Buckshot Roulette</h1>
 
+  <div class="dealer" id="dealer">
+    The dealer waits.
+  </div>
+
   <div>
     <button onclick="fire()">Pull Trigger</button>
-    <button class="secondary" onclick="resetGame()">Reload</button>
+    <button class="secondary" onclick="reload()">Reload</button>
   </div>
 
   <div class="status" id="status">
-    Load the shotgun.
+    —
   </div>
 
   <div class="shells" id="shells">
@@ -81,61 +95,73 @@
 
 <script>
 let shells = [];
+let liveCount = 0;
+let blankCount = 0;
 
-function resetGame() {
+function reload() {
   shells = [];
 
-  // Random total shell count: 2–8
-  const totalShells = randomInt(2, 8);
+  const total = rand(2, 8);
 
-  // Ensure at least one of each
-  let liveCount = randomInt(1, totalShells - 1);
-  let blankCount = totalShells - liveCount;
+  liveCount = rand(1, total - 1);
+  blankCount = total - liveCount;
 
-  // Build shell list
   for (let i = 0; i < liveCount; i++) shells.push("LIVE");
   for (let i = 0; i < blankCount; i++) shells.push("BLANK");
 
   shuffle(shells);
 
-  updateUI(
-    `Shotgun loaded with ${totalShells} shells.`
-  );
+  document.getElementById("dealer").textContent =
+    `Dealer: ${liveCount} live shell${liveCount > 1 ? "s" : ""}. ` +
+    `${blankCount} blank${blankCount > 1 ? "s" : ""}.`;
+
+  document.getElementById("status").textContent =
+    "The shotgun is loaded.";
+
+  updateShellCount();
 }
 
 function fire() {
   if (shells.length === 0) {
-    updateUI("No shells left.");
+    document.getElementById("status").textContent =
+      "The chamber is empty.";
     return;
   }
 
   const shell = shells.shift();
 
   if (shell === "LIVE") {
-    updateUI("💥 LIVE SHELL");
+    document.getElementById("status").textContent = "💥 LIVE SHELL";
+    liveCount--;
   } else {
-    updateUI("click… BLANK");
+    document.getElementById("status").textContent = "click… BLANK";
+    blankCount--;
+  }
+
+  updateShellCount();
+
+  if (shells.length === 0) {
+    document.getElementById("dealer").textContent =
+      "Dealer: The round is over.";
   }
 }
 
-function shuffle(array) {
-  for (let i = array.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [array[i], array[j]] = [array[j], array[i]];
-  }
-}
-
-function randomInt(min, max) {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
-function updateUI(message) {
-  document.getElementById("status").textContent = message;
+function updateShellCount() {
   document.getElementById("shells").textContent =
     `Shells remaining: ${shells.length}`;
 }
-</script>
 
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+}
+
+function rand(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+</script>
 
 </body>
 </html>
