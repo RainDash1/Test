@@ -83,17 +83,24 @@
 let shells = [];
 
 function resetGame() {
-  const live = 2;   // change this
-  const blank = 2;  // change this
-
   shells = [];
 
-  for (let i = 0; i < live; i++) shells.push("LIVE");
-  for (let i = 0; i < blank; i++) shells.push("BLANK");
+  // Random total shell count: 2–8
+  const totalShells = randomInt(2, 8);
+
+  // Ensure at least one of each
+  let liveCount = randomInt(1, totalShells - 1);
+  let blankCount = totalShells - liveCount;
+
+  // Build shell list
+  for (let i = 0; i < liveCount; i++) shells.push("LIVE");
+  for (let i = 0; i < blankCount; i++) shells.push("BLANK");
 
   shuffle(shells);
 
-  updateUI("Shotgun loaded.");
+  updateUI(
+    `Shotgun loaded with ${totalShells} shells.`
+  );
 }
 
 function fire() {
@@ -118,12 +125,17 @@ function shuffle(array) {
   }
 }
 
+function randomInt(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
 function updateUI(message) {
   document.getElementById("status").textContent = message;
   document.getElementById("shells").textContent =
     `Shells remaining: ${shells.length}`;
 }
 </script>
+
 
 </body>
 </html>
